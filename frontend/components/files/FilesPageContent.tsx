@@ -249,7 +249,7 @@ export default function FilesPageContent() {
   const loading = currentPath === '/' ? loadingRoots : loadingContents
 
   const items = useMemo(() => {
-    const ownerName = user?.company_legal_name || (typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null) || 'System'
+    const ownerName = user?.company_legal_name || user?.username || (typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null) || 'System'
     if (currentPath === '/') {
       const rootsArray = Array.isArray(issuerRoots) ? issuerRoots : []
       return rootsArray.map((f: any) => mapFolder(f, false, ownerName))
@@ -263,7 +263,7 @@ export default function FilesPageContent() {
   const [folderCache, setFolderCache] = useState<Record<string, { name: string; parentId: string | null; owner?: string }>>({})
 
   const searchResults = useMemo(() => {
-    const ownerName = user?.company_legal_name || (typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null) || 'System'
+    const ownerName = user?.company_legal_name || user?.username || (typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null) || 'System'
 
     // Extract folders and documents from the API response
     // API returns { folders: [...], documents: [...] } or possibly a flat array
@@ -327,7 +327,7 @@ export default function FilesPageContent() {
   useEffect(() => {
     const rootsArray = Array.isArray(issuerRoots) ? issuerRoots : []
     if (rootsArray.length === 0) return
-    const ownerName = user?.company_legal_name || (typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null) || 'System'
+    const ownerName = user?.company_legal_name || user?.username || (typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null) || 'System'
     setFolderCache(prev => {
       const next = { ...prev }
       let changed = false
@@ -346,7 +346,7 @@ export default function FilesPageContent() {
   useEffect(() => {
     const contents = issuerContents
     if (!contents) return
-    const ownerName = user?.company_legal_name || (typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null) || 'System'
+    const ownerName = user?.company_legal_name || user?.username || (typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null) || 'System'
     setFolderCache(prev => {
       const next = { ...prev }
       let changed = false
@@ -423,6 +423,13 @@ export default function FilesPageContent() {
     if (currentPath === '/') return 'Home'
     return folderCache[currentPath]?.name || currentContents?.folder?.name || ''
   }, [currentPath, folderCache, currentContents])
+
+  const currentFolderOwner = useMemo(() => {
+    const ownerName = user?.company_legal_name || user?.username || (typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null) || 'System'
+    if (currentPath === '/') return ownerName
+    const resolved = getFolderOwner(currentPath, folderCache)
+    return resolved && resolved !== 'System' ? resolved : ownerName
+  }, [currentPath, folderCache, user])
 
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => compareFiles(a, b, sortBy, sortAsc))
@@ -633,6 +640,7 @@ export default function FilesPageContent() {
         currentPath={currentPath}
         currentFolderName={currentFolderName}
         currentFolder={currentContents?.folder}
+        currentFolderOwner={currentFolderOwner}
         items={items}
         selectedItem={selectedItems.length === 1 ? selectedItems[0] : null}
         onNavigate={navigate} onClearSelection={() => setSelected(new Set())}

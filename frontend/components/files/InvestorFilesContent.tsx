@@ -414,6 +414,11 @@ export default function InvestorFilesContent() {
     return [{ label: 'Home', path: '/' }, ...trail]
   }, [currentPath, folderCache])
 
+  const currentFolderOwner = useMemo(() => {
+    if (currentPath === '/') return 'System'
+    return folderCache[currentPath]?.owner || getFolderOwner(currentPath, folderCache) || 'System'
+  }, [currentPath, folderCache])
+
   // Sorting
   const displayItems = useMemo(() => {
     return [...items].sort((a, b) => compareFiles(a, b, sortBy, sortAsc))
@@ -450,6 +455,7 @@ export default function InvestorFilesContent() {
         currentPath={currentPath}
         currentFolderName={breadcrumb[breadcrumb.length - 1]?.label}
         currentFolder={(currentContents as any)?.folder}
+        currentFolderOwner={currentFolderOwner}
         items={items}
         selectedItem={selectedItems.length === 1 ? selectedItems[0] : null}
         onNavigate={navigate} onClearSelection={() => setSelected(new Set())}

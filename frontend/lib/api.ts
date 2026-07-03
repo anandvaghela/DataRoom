@@ -83,6 +83,9 @@ export function clearAuth() {
   localStorage.removeItem('fb_token')
   localStorage.removeItem('fb_user')
   localStorage.removeItem('fb_refresh_token')
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem('ddms_company_legal_name')
+  }
 }
 
 export function getUser(): User | null {

@@ -71,11 +71,11 @@ function formatOwner(rawOwner: string): string {
   }
   return rawOwner
 }
-
 export default function DetailsPanel({
   currentPath,
   currentFolderName,
   currentFolder,
+  currentFolderOwner,
   items,
   selectedItem,
   onNavigate,
@@ -89,6 +89,7 @@ export default function DetailsPanel({
   currentPath: string
   currentFolderName?: string
   currentFolder?: any
+  currentFolderOwner?: string
   items: FileItem[]
   selectedItem: FileItem | null
   onNavigate: (path: string) => void
@@ -276,13 +277,13 @@ export default function DetailsPanel({
     }
 
     const cachedCompanyName = typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null
-    const rawOwner = (isSelectedActive && selectedItem.owner) || folderObj?.owner || cachedCompanyName || user?.username || 'Admin'
-    const owner = (user?.scope === 'issuer' && user?.company_legal_name &&
-      (rawOwner === user.username || rawOwner === String(user.id) || rawOwner === 'Admin'))
+    const rawOwner = (isSelectedActive && selectedItem.owner) || folderObj?.owner || currentFolderOwner || user?.company_legal_name || user?.username || cachedCompanyName || 'Admin'
+    const owner = currentFolderOwner || (((user?.scope === 'issuer' && user?.company_legal_name &&
+      (rawOwner === user.username || rawOwner === String(user.id) || rawOwner === 'Admin' || rawOwner === 'System' || rawOwner.match(/^[0-9a-fA-F]{24}$/)))
       ? user.company_legal_name
       : (user?.scope === 'investor' && rawOwner)
       ? rawOwner
-      : formatOwner(rawOwner)
+      : formatOwner(rawOwner)))
 
     return {
       folders: subDirs.length,
@@ -293,14 +294,14 @@ export default function DetailsPanel({
       modified: folderObjModified || (latest ? new Date(latest).toISOString() : null),
       created: (isSelectedActive && selectedItem.created) || folderObj?.created || folderObjModified || (latest ? new Date(latest).toISOString() : null)
     }
-  }, [allItemsRecursive, activePath, user, isInvestor, treeData, selectedItem])
+  }, [allItemsRecursive, activePath, user, isInvestor, treeData, selectedItem, currentFolderOwner])
 
   const displayItem = useMemo<FileItem>(() => {
     if (selectedItem) {
       const cachedCompanyName = typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null
-      const rawOwner = selectedItem.owner || cachedCompanyName
+      const rawOwner = selectedItem.owner || user?.company_legal_name || user?.username || cachedCompanyName
       const resolvedOwner = (user?.scope === 'issuer' && user?.company_legal_name && rawOwner &&
-        (rawOwner === user.username || rawOwner === String(user.id)))
+        (rawOwner === user.username || rawOwner === String(user.id) || rawOwner === 'System' || rawOwner === 'Admin' || rawOwner.match(/^[0-9a-fA-F]{24}$/)))
         ? user.company_legal_name
         : (user?.scope === 'investor' && rawOwner)
         ? rawOwner
@@ -328,15 +329,15 @@ export default function DetailsPanel({
       : activeStats.size
 
     const rawOwner = currentFolder
-      ? (currentFolder.issuer?.company_legal_name || currentFolder.company_legal_name || currentFolder.owner || currentFolder.issuer_id || user?.username || 'System')
+      ? (currentFolder.issuer?.company_legal_name || currentFolder.company_legal_name || currentFolder.owner || currentFolder.issuer_id || user?.company_legal_name || user?.username || 'System')
       : activeStats.owner
 
-    const owner = (user?.scope === 'issuer' && user?.company_legal_name &&
-      (rawOwner === user.username || rawOwner === String(user.id) || rawOwner === 'System' || rawOwner === 'Admin'))
+    const owner = currentFolderOwner || (((user?.scope === 'issuer' && user?.company_legal_name &&
+      (rawOwner === user.username || rawOwner === String(user.id) || rawOwner === 'System' || rawOwner === 'Admin' || rawOwner.match(/^[0-9a-fA-F]{24}$/)))
       ? user.company_legal_name
       : (user?.scope === 'investor' && rawOwner)
       ? rawOwner
-      : formatOwner(rawOwner)
+      : formatOwner(rawOwner)))
 
     return {
       name,
@@ -349,7 +350,7 @@ export default function DetailsPanel({
       isGlobal: currentFolder?.is_global || false,
       isVirtual: true,
     }
-  }, [selectedItem, currentPath, currentFolderName, currentFolder, activeStats, user])
+  }, [selectedItem, currentPath, currentFolderName, currentFolder, activeStats, user, currentFolderOwner])
 
   const showTree = currentPath === '/' && displayItem?.isDir
 
