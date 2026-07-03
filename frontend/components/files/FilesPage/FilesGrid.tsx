@@ -12,6 +12,7 @@ interface FilesGridProps {
   handleContextMenu: (e: React.MouseEvent, item: FileItem) => void
   isInvestor?: boolean
   hideMoreOptions?: boolean
+  isSearch?: boolean
 }
 
 export default function FilesGrid({
@@ -24,6 +25,7 @@ export default function FilesGrid({
   handleContextMenu,
   isInvestor,
   hideMoreOptions,
+  isSearch,
 }: FilesGridProps) {
   return (
     <div className="space-y-6">
@@ -44,6 +46,7 @@ export default function FilesGrid({
                 onContextMenu={(e) => handleContextMenu(e, item)}
                 isInvestor={isInvestor}
                 hideMoreOptions={hideMoreOptions}
+                isSearch={isSearch}
               />
             ))}
           </div>
@@ -66,6 +69,7 @@ export default function FilesGrid({
                 onContextMenu={(e) => handleContextMenu(e, item)}
                 isInvestor={isInvestor}
                 hideMoreOptions={hideMoreOptions}
+                isSearch={isSearch}
               />
             ))}
           </div>

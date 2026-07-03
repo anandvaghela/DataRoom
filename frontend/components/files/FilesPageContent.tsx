@@ -22,6 +22,7 @@ import ShareWithUsersModal from '@/components/files/ShareWithUsersModal'
 import DetailsPanel from '@/components/files/DetailsPanel'
 import Portal from '@/components/ui/Portal'
 import { FileItem, User } from '@/types'
+import { ddmsDocumentsService, ddmsInvestorService } from '@/lib/services/ddmsService'
 
 import FilesHeader from './FilesPage/FilesHeader'
 import FilesGrid from './FilesPage/FilesGrid'
@@ -31,19 +32,35 @@ import ContextMenu from './FilesPage/ContextMenu'
 
 const getId = (f: any) => f._id || f.id
 
-const mapFolder = (f: any, isInv: boolean): FileItem => ({
+const mapFolder = (f: any, isInv: boolean, ownerName?: string): FileItem => ({
   path: getId(f), name: f.name, isDir: true, size: f.size || 0,
   modified: f.updatedAt || f.createdAt || new Date().toISOString(),
   created: f.createdAt || null,
-  type: 'directory', sharedBy: f.issuer_id || 'System', canWrite: !isInv
+  type: 'directory',
+  sharedBy: ownerName || f.issuer_id || 'System',
+  owner: ownerName || f.issuer_id || 'System',
+  canWrite: !isInv
 })
 
-const mapDocument = (d: any, isInv: boolean): FileItem => ({
+const mapDocument = (d: any, isInv: boolean, ownerName?: string): FileItem => ({
   path: getId(d), name: d.filename, isDir: false, size: d.size || 0,
   modified: d.updatedAt || d.createdAt || new Date().toISOString(),
   created: d.createdAt || null,
-  type: d.mimetype?.split('/')[0] || 'file', sharedBy: d.issuer_id || 'System', canWrite: !isInv
+  type: d.mimetype?.split('/')[0] || 'file',
+  sharedBy: ownerName || d.issuer_id || 'System',
+  owner: ownerName || d.issuer_id || 'System',
+  canWrite: !isInv
 })
+
+const getFolderOwner = (id: string, cache: Record<string, { name: string; parentId: string | null; owner?: string }>): string => {
+  let curr = cache[id]
+  while (curr) {
+    if (curr.owner) return curr.owner
+    if (!curr.parentId) break
+    curr = cache[curr.parentId]
+  }
+  return 'System'
+}
 
 export type SortByOption = 'name' | 'size' | 'modified'
 
@@ -111,12 +128,13 @@ interface FilesPaneProps {
   setPreviewTarget: (item: FileItem | null) => void
   handleContextMenu: (e: React.MouseEvent, item: any) => void
   hideMoreOptions?: boolean
+  isSearch?: boolean
 }
 
 function FilesPane({
   loading, viewMode, displayItems, searchQuery, selected,
   sortBy, setSortBy, sortAsc, setSortAsc, handleItemClick, navigate,
-  setPreviewTarget, handleContextMenu, hideMoreOptions
+  setPreviewTarget, handleContextMenu, hideMoreOptions, isSearch
 }: Readonly<FilesPaneProps>) {
   if (loading) {
     return (
@@ -140,13 +158,13 @@ function FilesPane({
     <FilesList
       folders={folders} files={files} selected={selected} sortBy={sortBy} setSortBy={setSortBy} sortAsc={sortAsc} setSortAsc={setSortAsc}
       handleItemClick={handleItemClick} navigate={navigate} setPreviewTarget={setPreviewTarget} handleContextMenu={handleContextMenu}
-      isInvestor={false} hideMoreOptions={hideMoreOptions}
+      isInvestor={false} hideMoreOptions={hideMoreOptions} isSearch={isSearch}
     />
   ) : (
     <FilesGrid
       folders={folders} files={files} selected={selected} handleItemClick={handleItemClick} navigate={navigate} setPreviewTarget={setPreviewTarget}
       handleContextMenu={handleContextMenu}
-      isInvestor={false} hideMoreOptions={hideMoreOptions}
+      isInvestor={false} hideMoreOptions={hideMoreOptions} isSearch={isSearch}
     />
   )
 }
@@ -231,28 +249,60 @@ export default function FilesPageContent() {
   const loading = currentPath === '/' ? loadingRoots : loadingContents
 
   const items = useMemo(() => {
+    const ownerName = user?.company_legal_name || (typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null) || 'System'
     if (currentPath === '/') {
       const rootsArray = Array.isArray(issuerRoots) ? issuerRoots : []
-      return rootsArray.map((f: any) => mapFolder(f, false))
+      return rootsArray.map((f: any) => mapFolder(f, false, ownerName))
     }
     return [
-      ...(currentContents?.folders || []).map(f => mapFolder(f, false)),
-      ...(currentContents?.documents || []).map(d => mapDocument(d, false))
+      ...(currentContents?.folders || []).map(f => mapFolder(f, false, ownerName)),
+      ...(currentContents?.documents || []).map(d => mapDocument(d, false, ownerName))
     ]
-  }, [currentPath, issuerRoots, currentContents])
+  }, [currentPath, issuerRoots, currentContents, user])
 
-  const [folderCache, setFolderCache] = useState<Record<string, { name: string; parentId: string | null }>>({})
+  const [folderCache, setFolderCache] = useState<Record<string, { name: string; parentId: string | null; owner?: string }>>({})
 
   const searchResults = useMemo(() => {
-    const docs = (searchIssuerResults || []).map(d => mapDocument(d, false))
+    const ownerName = user?.company_legal_name || (typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null) || 'System'
+
+    // Extract folders and documents from the API response
+    // API returns { folders: [...], documents: [...] } or possibly a flat array
+    let apiFolders: any[] = []
+    let apiDocs: any[] = []
+
+    if (Array.isArray(searchIssuerResults)) {
+      // Flat array — treat all as documents (legacy shape)
+      apiDocs = searchIssuerResults
+    } else if (searchIssuerResults && typeof searchIssuerResults === 'object') {
+      const res = searchIssuerResults as any
+      if (Array.isArray(res.folders)) apiFolders = res.folders
+      if (Array.isArray(res.documents)) apiDocs = res.documents
+      // Fallback: check for 'data' wrapper
+      if (!apiFolders.length && !apiDocs.length && Array.isArray(res.data)) {
+        apiDocs = res.data
+      }
+    }
+
+    // Map API folders to FileItems
+    const mappedApiFolders: FileItem[] = apiFolders.map(f => {
+      const folderOwner = f.issuer?.company_legal_name || f.company_legal_name || ownerName
+      return mapFolder(f, false, folderOwner)
+    })
+
+    // Map API documents to FileItems
+    const docs = apiDocs.map(d => {
+      const parentOwner = d.folder_id ? getFolderOwner(d.folder_id, folderCache) : undefined
+      return mapDocument(d, false, parentOwner || ownerName)
+    })
     
-    // Local folder search from cache
+    // Local folder search from cache (supplement API results)
     const query = searchQuery.trim().toLowerCase()
-    const matchingFolders: FileItem[] = []
+    const matchingFolders: FileItem[] = [...mappedApiFolders]
     if (query) {
       Object.entries(folderCache).forEach(([id, info]) => {
         if (id !== '/' && info.name.toLowerCase().includes(query)) {
           if (!matchingFolders.some(f => f.path === id)) {
+            const cacheOwner = getFolderOwner(id, folderCache) || ownerName
             matchingFolders.push({
               path: id,
               name: info.name,
@@ -261,7 +311,8 @@ export default function FilesPageContent() {
               modified: new Date().toISOString(),
               created: null,
               type: 'directory',
-              sharedBy: 'System',
+              sharedBy: cacheOwner,
+              owner: cacheOwner,
               canWrite: true
             })
           }
@@ -270,30 +321,32 @@ export default function FilesPageContent() {
     }
 
     return [...matchingFolders, ...docs]
-  }, [searchIssuerResults, searchQuery, folderCache])
+  }, [searchIssuerResults, searchQuery, folderCache, user])
 
   // Update cache with roots
   useEffect(() => {
     const rootsArray = Array.isArray(issuerRoots) ? issuerRoots : []
     if (rootsArray.length === 0) return
+    const ownerName = user?.company_legal_name || (typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null) || 'System'
     setFolderCache(prev => {
       const next = { ...prev }
       let changed = false
       for (const r of rootsArray) {
         const id = (r as any)._id || (r as any).id
         if (id && (!next[id] || next[id].name !== r.name)) {
-          next[id] = { name: r.name, parentId: null }
+          next[id] = { name: r.name, parentId: null, owner: ownerName }
           changed = true
         }
       }
       return changed ? next : prev
     })
-  }, [issuerRoots])
+  }, [issuerRoots, user])
 
   // Update cache with subfolders and current folder when contents are loaded
   useEffect(() => {
     const contents = issuerContents
     if (!contents) return
+    const ownerName = user?.company_legal_name || (typeof window !== 'undefined' ? sessionStorage.getItem('ddms_company_legal_name') : null) || 'System'
     setFolderCache(prev => {
       const next = { ...prev }
       let changed = false
@@ -304,7 +357,7 @@ export default function FilesPageContent() {
         const id = f._id || f.id
         const parentId = f.parent_id || null
         if (id && (!next[id] || next[id].name !== f.name)) {
-          next[id] = { name: f.name, parentId }
+          next[id] = { name: f.name, parentId, owner: ownerName }
           changed = true
         }
       }
@@ -314,16 +367,24 @@ export default function FilesPageContent() {
         const id = f._id || f.id
         const parentId = f.parent_id || null
         if (id && (!next[id] || next[id].name !== f.name)) {
-          next[id] = { name: f.name, parentId }
+          next[id] = { name: f.name, parentId, owner: ownerName }
           changed = true
         }
       }
 
       return changed ? next : prev
     })
-  }, [issuerContents])
+  }, [issuerContents, user])
 
-  const navigate = (path: string) => router.push(`/dashboard/files?path=${encodeURIComponent(path)}`)
+  const navigate = (path: string) => {
+    // Clear search when navigating to a folder
+    setSearchQuery('')
+    if (globalThis.window) {
+      (globalThis.window as any).__searchQuery = ''
+      globalThis.window.dispatchEvent(new CustomEvent('global-search', { detail: '' }))
+    }
+    router.push(`/dashboard/files?path=${encodeURIComponent(path)}`)
+  }
   useEffect(() => { setCurrentPath(searchParams.get('path') || '/') }, [searchParams])
 
   // Dropzone upload
@@ -393,6 +454,19 @@ export default function FilesPageContent() {
   const handleItemClick = (item: any, e: React.MouseEvent) => {
     e.stopPropagation()
     if (e.detail === 2) return // ignore clicks that are part of a double-click
+
+    // On small screens, single click opens folder / previews file (double-click unreliable on touch)
+    const isSmallScreen = typeof window !== 'undefined' && window.innerWidth < 1024
+    if (isSmallScreen && e.detail === 1) {
+      if (item.isDir) {
+        navigate(item.path)
+        return
+      } else {
+        setPreviewTarget(item)
+        return
+      }
+    }
+
     if (e.ctrlKey || e.metaKey) {
       setSelected(prev => {
         const n = new Set(prev)
@@ -413,6 +487,30 @@ export default function FilesPageContent() {
     }
     toast.success(`Deleted ${targets.length} item${targets.length > 1 ? 's' : ''}`)
     setDeleteTargets([]); setSelected(new Set())
+  }
+
+  const handleDownload = async (file: FileItem) => {
+    try {
+      const isUserInvestor = user?.scope === 'investor'
+      const res = isUserInvestor
+        ? await ddmsInvestorService.getDocumentUrl(file.path)
+        : await ddmsDocumentsService.getUrl(file.path)
+      
+      if (res?.url) {
+        const a = document.createElement('a')
+        a.href = res.url
+        a.download = file.name
+        a.target = '_blank'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      } else {
+        toast.error('Failed to get download URL')
+      }
+    } catch (err: any) {
+      toast.error('Failed to download file')
+      console.error(err)
+    }
   }
 
   const selectedItems = displayItems.filter((i: any) => selected.has(i.path))
@@ -478,6 +576,7 @@ export default function FilesPageContent() {
             setSortAsc={setSortAsc} handleItemClick={handleItemClick} navigate={navigate} setPreviewTarget={setPreviewTarget}
             handleContextMenu={handleContextMenu}
             hideMoreOptions={currentPath === '/' && !searchQuery}
+            isSearch={!!searchQuery}
           />
         </div>
 
@@ -502,7 +601,7 @@ export default function FilesPageContent() {
           {deleteTargets.length > 0 && <DeleteConfirm items={deleteTargets} onClose={() => setDeleteTargets([])} onConfirm={() => handleDelete(deleteTargets)} />}
           {previewTarget && (
             <FilePreviewModal
-              file={previewTarget} isSharedContext={false} onClose={() => setPreviewTarget(null)} onDownload={() => {}}
+              file={previewTarget} isSharedContext={false} onClose={() => setPreviewTarget(null)} onDownload={() => handleDownload(previewTarget)}
               onDelete={user?.perm?.delete ? () => { setPreviewTarget(null); setDeleteTargets([previewTarget]) } : undefined}
               onShare={user?.perm?.share ? () => { setPreviewTarget(null); setShareTarget(previewTarget) } : undefined}
               onRename={user?.perm?.rename ? () => { setPreviewTarget(null); setRenameTarget(previewTarget) } : undefined}
@@ -539,7 +638,7 @@ export default function FilesPageContent() {
         onNavigate={navigate} onClearSelection={() => setSelected(new Set())}
         onShareLink={user?.perm?.share && activeSidebarItem && !activeSidebarItem.isDir ? () => setShareTarget(activeSidebarItem) : undefined}
         onShareUsers={user?.perm?.share && activeSidebarItem && !activeSidebarItem.isDir && isPrivateRootActive ? () => setShareWithUsersTarget(activeSidebarItem) : undefined}
-        onDownload={user?.perm?.download && activeSidebarItem ? () => {} : undefined}
+        onDownload={user?.perm?.download && activeSidebarItem && !activeSidebarItem.isDir ? () => handleDownload(activeSidebarItem) : undefined}
         onMakeGlobal={user?.perm?.admin && activeSidebarItem ? () => {} : undefined}
         onRemoveGlobal={user?.perm?.admin && activeSidebarItem ? () => {} : undefined}
       />

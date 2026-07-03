@@ -13,6 +13,8 @@ import FilePreviewModal from '@/components/files/FilePreviewModal'
 import DetailsPanel from '@/components/files/DetailsPanel'
 import Portal from '@/components/ui/Portal'
 import { FileItem, User } from '@/types'
+import { ddmsDocumentsService, ddmsInvestorService } from '@/lib/services/ddmsService'
+import toast from 'react-hot-toast'
 
 import FilesHeader from './FilesPage/FilesHeader'
 import FilesGrid from './FilesPage/FilesGrid'
@@ -64,6 +66,16 @@ function compareFiles(a: FileItem, b: FileItem, sortBy: SortByOption, sortAsc: b
   return sortAsc ? da - db : db - da
 }
 
+const getFolderOwner = (id: string, cache: Record<string, { name: string; parentId: string | null; owner?: string }>): string => {
+  let curr = cache[id]
+  while (curr) {
+    if (curr.owner) return curr.owner
+    if (!curr.parentId) break
+    curr = cache[curr.parentId]
+  }
+  return 'System'
+}
+
 interface FilesPaneProps {
   loading: boolean
   viewMode: 'grid' | 'list'
@@ -77,12 +89,13 @@ interface FilesPaneProps {
   handleItemClick: (item: any, e: React.MouseEvent) => void
   navigate: (path: string) => void
   setPreviewTarget: (item: FileItem | null) => void
+  isSearch?: boolean
 }
 
 function FilesPane({
   loading, viewMode, displayItems, searchQuery, selected,
   sortBy, setSortBy, sortAsc, setSortAsc, handleItemClick, navigate,
-  setPreviewTarget
+  setPreviewTarget, isSearch
 }: Readonly<FilesPaneProps>) {
   if (loading) {
     return (
@@ -105,13 +118,13 @@ function FilesPane({
     <FilesList
       folders={folders} files={files} selected={selected} sortBy={sortBy} setSortBy={setSortBy} sortAsc={sortAsc} setSortAsc={setSortAsc}
       handleItemClick={handleItemClick} navigate={navigate} setPreviewTarget={setPreviewTarget} handleContextMenu={() => {}}
-      isInvestor={true}
+      isInvestor={true} isSearch={isSearch}
     />
   ) : (
     <FilesGrid
       folders={folders} files={files} selected={selected} handleItemClick={handleItemClick} navigate={navigate} setPreviewTarget={setPreviewTarget}
       handleContextMenu={() => {}}
-      isInvestor={true}
+      isInvestor={true} isSearch={isSearch}
     />
   )
 }
@@ -179,7 +192,7 @@ export default function InvestorFilesContent() {
     return () => globalThis.window?.removeEventListener('global-search', updateSearch)
   }, [])
 
-  const [folderCache, setFolderCache] = useState<Record<string, { name: string; parentId: string | null }>>({})
+  const [folderCache, setFolderCache] = useState<Record<string, { name: string; parentId: string | null; owner?: string }>>({})
 
   // Update cache with investor roots
   useEffect(() => {
@@ -199,7 +212,7 @@ export default function InvestorFilesContent() {
         const companyName = r.issuer?.company_legal_name || r.company_legal_name || r.owner
         const name = (r.is_root && companyName) ? companyName : r.name
         if (id && (!next[id] || next[id].name !== name)) {
-          next[id] = { name, parentId: null }
+          next[id] = { name, parentId: null, owner: companyName }
           changed = true
         }
       }
@@ -222,7 +235,7 @@ export default function InvestorFilesContent() {
         const companyName = f.issuer?.company_legal_name || f.company_legal_name || f.owner
         const name = (f.is_root && companyName) ? companyName : f.name
         if (id && (!next[id] || next[id].name !== name)) {
-          next[id] = { name, parentId }
+          next[id] = { name, parentId, owner: companyName }
           changed = true
         }
       }
@@ -233,7 +246,7 @@ export default function InvestorFilesContent() {
         const companyName = f.issuer?.company_legal_name || f.company_legal_name || f.owner
         const name = (f.is_root && companyName) ? companyName : f.name
         if (id && (!next[id] || next[id].name !== name)) {
-          next[id] = { name, parentId }
+          next[id] = { name, parentId, owner: companyName }
           changed = true
         }
       }
@@ -244,17 +257,41 @@ export default function InvestorFilesContent() {
 
   const items = useMemo(() => {
     if (searchQuery.trim()) {
-      if (!searchInvResults) return []
-      const docs = Array.isArray(searchInvResults) ? searchInvResults : []
-      const mappedDocs = docs.map(d => mapDocument(d))
+      // Extract folders and documents from the API response
+      let apiFolders: any[] = []
+      let apiDocs: any[] = []
 
-      // Local folder search from cache
+      if (Array.isArray(searchInvResults)) {
+        apiDocs = searchInvResults
+      } else if (searchInvResults && typeof searchInvResults === 'object') {
+        const res = searchInvResults as any
+        if (Array.isArray(res.folders)) apiFolders = res.folders
+        if (Array.isArray(res.documents)) apiDocs = res.documents
+        if (!apiFolders.length && !apiDocs.length && Array.isArray(res.data)) {
+          apiDocs = res.data
+        }
+      }
+
+      // Map API folders to FileItems
+      const mappedApiFolders: FileItem[] = apiFolders.map(f => {
+        const folderOwner = f.issuer?.company_legal_name || f.company_legal_name || f.owner
+        return mapFolder(f, folderOwner)
+      })
+
+      // Map API documents to FileItems
+      const mappedDocs = apiDocs.map(d => {
+        const ownerName = d.folder_id ? getFolderOwner(d.folder_id, folderCache) : undefined
+        return mapDocument(d, ownerName)
+      })
+
+      // Local folder search from cache (supplement API results)
       const query = searchQuery.trim().toLowerCase()
-      const matchingFolders: FileItem[] = []
+      const matchingFolders: FileItem[] = [...mappedApiFolders]
       if (query) {
         Object.entries(folderCache).forEach(([id, info]) => {
           if (id !== '/' && info.name.toLowerCase().includes(query)) {
             if (!matchingFolders.some(f => f.path === id)) {
+              const ownerName = getFolderOwner(id, folderCache)
               matchingFolders.push({
                 path: id,
                 name: info.name,
@@ -263,7 +300,8 @@ export default function InvestorFilesContent() {
                 modified: new Date().toISOString(),
                 created: null,
                 type: 'directory',
-                sharedBy: 'System',
+                sharedBy: ownerName,
+                owner: ownerName,
                 canWrite: false
               })
             }
@@ -302,11 +340,40 @@ export default function InvestorFilesContent() {
 
   const navigate = useCallback((path: string) => {
     setSelected(new Set())
+    setSearchQuery('')
+    if (globalThis.window) {
+      (globalThis.window as any).__searchQuery = ''
+      globalThis.window.dispatchEvent(new CustomEvent('global-search', { detail: '' }))
+    }
     setCurrentPath(path)
     const params = new URLSearchParams(window.location.search)
     params.set('path', path)
     router.push(`${window.location.pathname}?${params.toString()}`)
   }, [router])
+
+  const handleDownload = async (file: FileItem) => {
+    try {
+      const isUserInvestor = user?.scope === 'investor'
+      const res = isUserInvestor
+        ? await ddmsInvestorService.getDocumentUrl(file.path)
+        : await ddmsDocumentsService.getUrl(file.path)
+      
+      if (res?.url) {
+        const a = document.createElement('a')
+        a.href = res.url
+        a.download = file.name
+        a.target = '_blank'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      } else {
+        toast.error('Failed to get download URL')
+      }
+    } catch (err: any) {
+      toast.error('Failed to download file')
+      console.error(err)
+    }
+  }
 
   // Click handler
   const handleItemClick = (item: any, e: React.MouseEvent) => {
@@ -362,6 +429,7 @@ export default function InvestorFilesContent() {
             loading={loading} viewMode={viewMode} displayItems={displayItems} searchQuery={searchQuery}
             selected={selected} sortBy={sortBy} setSortBy={setSortBy} sortAsc={sortAsc}
             setSortAsc={setSortAsc} handleItemClick={handleItemClick} navigate={navigate} setPreviewTarget={setPreviewTarget}
+            isSearch={!!searchQuery}
           />
         </div>
 
@@ -372,7 +440,7 @@ export default function InvestorFilesContent() {
         <Portal>
           {previewTarget && (
             <FilePreviewModal
-              file={previewTarget} isSharedContext={true} onClose={() => setPreviewTarget(null)} onDownload={() => {}}
+              file={previewTarget} isSharedContext={true} onClose={() => setPreviewTarget(null)} onDownload={() => handleDownload(previewTarget)}
             />
           )}
         </Portal>
@@ -385,6 +453,7 @@ export default function InvestorFilesContent() {
         items={items}
         selectedItem={selectedItems.length === 1 ? selectedItems[0] : null}
         onNavigate={navigate} onClearSelection={() => setSelected(new Set())}
+        onDownload={activeSidebarItem && !activeSidebarItem.isDir ? () => handleDownload(activeSidebarItem) : undefined}
       />
     </div>
   )

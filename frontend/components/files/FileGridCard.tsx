@@ -13,6 +13,7 @@ interface FileGridCardProps {
   onContextMenu: (e: React.MouseEvent) => void
   isInvestor?: boolean
   hideMoreOptions?: boolean
+  isSearch?: boolean
 }
 
 export default function FileGridCard({
@@ -22,7 +23,8 @@ export default function FileGridCard({
   onDoubleClick,
   onContextMenu,
   isInvestor,
-  hideMoreOptions
+  hideMoreOptions,
+  isSearch
 }: FileGridCardProps) {
   return (
     <div
@@ -94,6 +96,11 @@ export default function FileGridCard({
             <span className={clsx('text-[8px] px-1 py-0.5 rounded font-medium flex-shrink-0', isSelected ? 'bg-white/70 text-green-700' : 'bg-green-100 text-green-700')}>Shared</span>
           )}
         </div>
+        {isSearch && (item.owner || item.sharedBy) && (item.owner || item.sharedBy) !== 'System' && (
+          <p className="text-[10px] text-gray-400 font-medium truncate mt-0.5 w-full text-left">
+            by {item.owner || item.sharedBy}
+          </p>
+        )}
       </div>
 
       {/* Bottom Details */}

@@ -16,11 +16,14 @@
 }
 
 @layer base {
-  * { box-sizing: border-box; }
+  * {
+    box-sizing: border-box;
+  }
 
   html {
     font-family: var(--base-fm);
-    font-size: 17.6px; /* Increased by 10% to match 110% zoom style */
+    font-size: 17.6px;
+    /* Increased by 10% to match 110% zoom style */
   }
 
   body {
@@ -30,40 +33,105 @@
     background: #ffffff;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-size: 16.5px; /* Increased by 10% */
+    font-size: 16.5px;
+    /* Increased by 10% */
     line-height: 1.5;
   }
 
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-  ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
 }
 
 @layer utilities {
-  .animation-delay-200 { animation-delay: 200ms; }
-  .animation-delay-400 { animation-delay: 400ms; }
-  .animation-delay-2000 { animation-delay: 2s; }
-  .animation-delay-4000 { animation-delay: 4s; }
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
 
   /* Hide scrollbar for Chrome, Safari and Opera */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
   /* Hide scrollbar for IE, Edge and Firefox */
   .no-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
   }
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Login page responsive */
 @media (max-width: 1023px) {
-  .leftside-panel { display: none !important; }
-  .rightside-panel { width: 100% !important; }
+  .leftside-panel {
+    display: none !important;
+  }
+
+  .rightside-panel {
+    width: 100% !important;
+  }
+}
+
+.input-label {
+  display: block;
+  font-family: var(--base-fm);
+  font-size: 18px;
+  font-weight: 500;
+  color: #555555;
+  margin: 0px 0px 11px;
+}
+
+.input-field.p-inputtext.p-component {
+  width: 100%;
+  height: 52px;
+  padding: 0px 16px;
+  background-color: #ffffff;
+  font-family: var(--base-fm);
+  font-size: 15px;
+  color: #333333;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.2s ease-in-out;
+}
+
+.input-field.p-inputtext.p-component:focus {
+  border-color: #007aff;
 }

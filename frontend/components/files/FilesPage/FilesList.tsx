@@ -17,6 +17,7 @@ interface FilesListProps {
   handleContextMenu: (e: React.MouseEvent, item: FileItem) => void
   isInvestor?: boolean
   hideMoreOptions?: boolean
+  isSearch?: boolean
 }
 
 export default function FilesList({
@@ -33,6 +34,7 @@ export default function FilesList({
   handleContextMenu,
   isInvestor,
   hideMoreOptions,
+  isSearch,
 }: FilesListProps) {
   const toggleSort = (field: 'name' | 'size' | 'modified') => {
     if (sortBy === field) {
@@ -86,6 +88,7 @@ export default function FilesList({
               onContextMenu={(e) => handleContextMenu(e, item)}
               isInvestor={isInvestor}
               hideMoreOptions={hideMoreOptions}
+              isSearch={isSearch}
             />
           ))}
         </>
@@ -109,6 +112,7 @@ export default function FilesList({
               onContextMenu={(e) => handleContextMenu(e, item)}
               isInvestor={isInvestor}
               hideMoreOptions={hideMoreOptions}
+              isSearch={isSearch}
             />
           ))}
         </>

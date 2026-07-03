@@ -15,6 +15,7 @@ import Portal from '@/components/ui/Portal'
 import { FileItem, User } from '@/types'
 import { FileIcon, BgIcon } from '@/components/files/FileIcon'
 import { useDDMSInvestorIssuerRoots, useDDMSRoots } from '@/lib/hooks/useDDMS'
+import { ddmsDocumentsService, ddmsInvestorService } from '@/lib/services/ddmsService'
 
 export default function SharedPageContent() {
   const router = useRouter()
@@ -62,8 +63,28 @@ export default function SharedPageContent() {
     }
   }
 
-  const handleDownload = (_item: FileItem) => {
-    // Download handled via DDMS document URL
+  const handleDownload = async (file: FileItem) => {
+    try {
+      const isUserInvestor = user?.scope === 'investor'
+      const res = isUserInvestor
+        ? await ddmsInvestorService.getDocumentUrl(file.path)
+        : await ddmsDocumentsService.getUrl(file.path)
+      
+      if (res?.url) {
+        const a = document.createElement('a')
+        a.href = res.url
+        a.download = file.name
+        a.target = '_blank'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      } else {
+        toast.error('Failed to get download URL')
+      }
+    } catch (err: any) {
+      toast.error('Failed to download file')
+      console.error(err)
+    }
   }
 
   // Filter & Sort

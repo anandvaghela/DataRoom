@@ -82,11 +82,11 @@ export function DetailsTabContent({
       </div>
 
       {/* Options */}
-      {!isInvestor && (
+      {(!isInvestor || (isInvestor && onDownload && !displayItem.isDir)) && (
         <div className="pt-2 border-t border-gray-100">
           <p className="text-sm font-bold text-gray-800 mb-3">Options</p>
           <div className="space-y-3">
-            {onShareLink && (
+            {!isInvestor && onShareLink && (
               <button onClick={onShareLink} className="w-full flex items-center gap-3.5 text-left focus:outline-none group">
                 <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-600 group-hover:bg-blue-100 transition-colors">
                   <Share2 className="w-4 h-4" />

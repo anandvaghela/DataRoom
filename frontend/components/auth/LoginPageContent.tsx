@@ -169,7 +169,7 @@ export default function LoginPageContent({ initialMode = 'founder' }: Readonly<{
               <h1 className="text-[54px] font-bold text-black leading-[1.2] mb-[30px] tracking-tight">
                 {initialMode === 'investor' ? 'Investor Login' : 'Founder Login'}
               </h1>
-              <p className="text-[24px] text-[#555555] leading-relaxed max-w-[592px] mb-[65px]">
+              <p className="text-[24px] text-[#555555] leading-[1.4] max-w-[592px] mb-[65px]">
                 {initialMode === 'investor'
                   ? 'Access company data rooms, review due diligence documents, and evaluate investment opportunities in a secure environment.'
                   : 'Create and manage your secure data room. Upload pitch decks, financial statements, legal documents, and due diligence materials for investors.'}
@@ -234,31 +234,33 @@ export default function LoginPageContent({ initialMode = 'founder' }: Readonly<{
             <form onSubmit={handleLogin}>
               {/* Email field */}
               <div className="mb-4">
-                <label className="block text-sm text-[#333333] mb-2">
+                <label htmlFor="email" className="input-label">
                   Enter your email address
                 </label>
                 <input
+                  id="email"
                   type="email"
                   placeholder="Email"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   autoFocus
-                  className="w-full h-[46px] px-4 text-[15px] text-[#333333] bg-white border border-[#d9d9d9] rounded-lg outline-none transition-all duration-200 focus:border-[#007aff] placeholder:text-[#b0b0b0]"
+                  className="input-field p-inputtext p-component"
                 />
               </div>
 
               {/* Password field */}
               <div className="mb-4">
-                <label className="block text-sm text-[#333333] mb-2">
+                <label htmlFor="password" className="input-label">
                   Enter your password
                 </label>
                 <div className="relative">
                   <input
+                    id="password"
                     type={showPass ? 'text' : 'password'}
                     placeholder="Password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="w-full h-[46px] pl-4 pr-11 text-[15px] text-[#333333] bg-white border border-[#d9d9d9] rounded-lg outline-none transition-all duration-200 focus:border-[#007aff] placeholder:text-[#b0b0b0]"
+                    className="input-field p-inputtext p-component pr-11"
                   />
                   <button
                     type="button"

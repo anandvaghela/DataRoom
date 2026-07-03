@@ -13,6 +13,7 @@ interface FileListRowProps {
   onContextMenu: (e: React.MouseEvent) => void
   isInvestor?: boolean
   hideMoreOptions?: boolean
+  isSearch?: boolean
 }
 
 export default function FileListRow({
@@ -22,7 +23,8 @@ export default function FileListRow({
   onDoubleClick,
   onContextMenu,
   isInvestor,
-  hideMoreOptions
+  hideMoreOptions,
+  isSearch
 }: FileListRowProps) {
   return (
     <div
@@ -38,7 +40,14 @@ export default function FileListRow({
         <div className={clsx('w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0', isSelected ? 'bg-[#deeeff]' : BgIcon({ file: item }))}>
           <FileIcon file={item} selected={false} />
         </div>
-        <span className={clsx('text-xs sm:text-sm font-semibold truncate', isSelected ? 'text-[#0062cc]' : 'text-gray-800')}>{item.name}</span>
+        <div className="flex flex-col min-w-0">
+          <span className={clsx('text-xs sm:text-sm font-semibold truncate', isSelected ? 'text-[#0062cc]' : 'text-gray-800')}>{item.name}</span>
+          {isSearch && (item.owner || item.sharedBy) && (item.owner || item.sharedBy) !== 'System' && (
+            <span className="text-[10px] text-gray-400 font-medium truncate mt-0.5">
+              by {item.owner || item.sharedBy}
+            </span>
+          )}
+        </div>
         {item.isGlobal && <span className="text-[9px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium flex-shrink-0 hidden sm:inline">Global</span>}
         {item.isSharedWithMe && <span className="text-[9px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full font-medium flex-shrink-0 hidden sm:inline">Shared</span>}
         {item.isRoot && item.rootType && (
