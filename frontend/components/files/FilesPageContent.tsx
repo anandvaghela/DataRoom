@@ -62,6 +62,12 @@ async function uploadSingleFile(
   setUploading: React.Dispatch<React.SetStateAction<Record<string, number>>>
 ) {
   const filename = file.name
+  const dotIndex = filename.lastIndexOf('.')
+  if (dotIndex === -1 || dotIndex === filename.length - 1) {
+    toast.error(`Upload failed: File '${filename}' must have a valid extension.`)
+    return
+  }
+
   try {
     setUploading(prev => ({ ...prev, [filename]: 0 }))
     await mutateAsync({

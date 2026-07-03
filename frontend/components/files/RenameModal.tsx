@@ -9,6 +9,8 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { useQueryClient } from '@tanstack/react-query'
 
+const FORBIDDEN_FOLDER_NAMES = ['private', 'protected', 'public']
+
 // ── Rename ─────────────────────────────────────────────────────────────────────
 export function RenameModal({ file, currentPath, onClose, onDone }: {
   file: any; currentPath: string; onClose: () => void; onDone: () => void
@@ -19,13 +21,33 @@ export function RenameModal({ file, currentPath, onClose, onDone }: {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || name === file.name) { onClose(); return }
+    const trimmedName = name.trim()
+    if (!trimmedName || trimmedName === file.name) { onClose(); return }
+
+    if (file.isDir) {
+      if (FORBIDDEN_FOLDER_NAMES.includes(trimmedName.toLowerCase())) {
+        toast.error(`Folder name '${trimmedName}' is reserved and cannot be used`)
+        return
+      }
+    } else {
+      const originalDotIndex = file.name.lastIndexOf('.')
+      const originalExt = originalDotIndex !== -1 ? file.name.slice(originalDotIndex) : ''
+
+      const newDotIndex = trimmedName.lastIndexOf('.')
+      const newExt = newDotIndex !== -1 ? trimmedName.slice(newDotIndex) : ''
+
+      if (newExt.toLowerCase() !== originalExt.toLowerCase()) {
+        toast.error(originalExt ? `Changing or removing the file extension is not allowed. The extension must remain '${originalExt}'` : 'Adding an extension to this file is not allowed')
+        return
+      }
+    }
+
     setLoading(true)
     try {
       if (file.isDir) {
-        await ddmsFoldersService.rename(file.path, { name: name.trim() })
+        await ddmsFoldersService.rename(file.path, { name: trimmedName })
       } else {
-        await ddmsDocumentsService.rename(file.path, { filename: name.trim() })
+        await ddmsDocumentsService.rename(file.path, { filename: trimmedName })
       }
       toast.success('Renamed successfully')
       qc.invalidateQueries({ queryKey: ['ddmsFolders'] })
@@ -54,7 +76,15 @@ export function RenameModal({ file, currentPath, onClose, onDone }: {
             value={name}
             onChange={e => setName(e.target.value)}
             autoFocus
-            onFocus={e => e.target.select()}
+            onFocus={e => {
+              const dotIndex = file.name.lastIndexOf('.')
+              if (!file.isDir && dotIndex !== -1) {
+                // Select only the filename part, excluding the extension
+                e.target.setSelectionRange(0, dotIndex)
+              } else {
+                e.target.select()
+              }
+            }}
             placeholder="Name"
           />
           <div className="flex gap-3">
@@ -84,7 +114,12 @@ export function NewFolderModal({ currentPath, onClose, onDone, user, isSharedCon
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) return
+    const trimmedName = name.trim()
+    if (!trimmedName) return
+    if (FORBIDDEN_FOLDER_NAMES.includes(trimmedName.toLowerCase())) {
+      toast.error(`Folder name '${trimmedName}' is reserved and cannot be used`)
+      return
+    }
     if (isSharedContext && !sharedCanWrite) {
       toast.error('You have read-only access to this folder')
       return
@@ -96,7 +131,7 @@ export function NewFolderModal({ currentPath, onClose, onDone, user, isSharedCon
         setLoading(false)
         return
       }
-      await ddmsFoldersService.create({ parent_id: currentPath, name: name.trim() })
+      await ddmsFoldersService.create({ parent_id: currentPath, name: trimmedName })
 
       toast.success('Folder created')
       qc.invalidateQueries({ queryKey: ['ddmsFolders'] })

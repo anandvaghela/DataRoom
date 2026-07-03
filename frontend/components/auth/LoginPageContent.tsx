@@ -144,10 +144,10 @@ export default function LoginPageContent({ initialMode = 'founder' }: Readonly<{
     >
       <div className="flex w-full min-h-[calc(100vh-48px)]">
         {/* LEFT — aside panel */}
-        <aside className="leftside-panel w-1/2 py-8 px-12 flex flex-col justify-between relative">
+        <aside className="leftside-panel w-1/2 pt-0 pb-8 pl-[64px] pr-[64px] flex flex-col justify-between relative">
           <div>
             {/* Logo */}
-            <div>
+            <div className="min-h-[64px] flex items-center">
               <a
                 href="/"
                 onClick={(e) => { e.preventDefault(); router.push('/') }}
@@ -165,11 +165,11 @@ export default function LoginPageContent({ initialMode = 'founder' }: Readonly<{
             </div>
 
             {/* Headline */}
-            <div className="mt-16">
-              <h1 className="text-[38px] font-extrabold text-[#1a1a1a] leading-[1.2] mb-3.5 tracking-tight">
+            <div className="mt-[67px]">
+              <h1 className="text-[54px] font-bold text-black leading-[1.2] mb-[30px] tracking-tight">
                 {initialMode === 'investor' ? 'Investor Login' : 'Founder Login'}
               </h1>
-              <p className="text-[15px] text-[#555555] leading-relaxed max-w-[380px]">
+              <p className="text-[24px] text-[#555555] leading-relaxed max-w-[592px] mb-[65px]">
                 {initialMode === 'investor'
                   ? 'Access company data rooms, review due diligence documents, and evaluate investment opportunities in a secure environment.'
                   : 'Create and manage your secure data room. Upload pitch decks, financial statements, legal documents, and due diligence materials for investors.'}
@@ -178,7 +178,7 @@ export default function LoginPageContent({ initialMode = 'founder' }: Readonly<{
               <button
                 type="button"
                 onClick={() => router.push(initialMode === 'investor' ? '/issuer/login' : '/investor/login')}
-                className="mt-8 text-sm font-semibold text-[#007aff] hover:text-[#0056b3] transition-colors flex items-center gap-1.5"
+                className="text-[20px] font-semibold text-[#007aff] hover:text-[#0056b3] transition-colors flex items-center gap-1.5 mt-0"
               >
                 {initialMode === 'investor' ? 'Switch to Founder Login →' : 'Switch to Investor Login →'}
               </button>
@@ -189,7 +189,7 @@ export default function LoginPageContent({ initialMode = 'founder' }: Readonly<{
         {/* RIGHT — form panel */}
         <main className="rightside-panel w-1/2 flex flex-col justify-between bg-white/[0.92] backdrop-blur-[16px] border-l border-[#ebebeb]">
           {/* Form area */}
-          <div className="flex-1 flex flex-col justify-start lg:justify-center py-10 px-10 lg:px-14 w-full">
+          <div className="flex-1 flex flex-col justify-start lg:pt-[131px] py-10 px-10 lg:px-14 w-full">
             {/* Mobile Header (Visible only on small screens) */}
             <div className="block lg:hidden mb-8">
               {/* Logo */}
@@ -270,15 +270,8 @@ export default function LoginPageContent({ initialMode = 'founder' }: Readonly<{
                 </div>
               </div>
 
-              {/* Forgot Password + Login row */}
-              <div className="flex items-center justify-between mb-5 mt-1">
-                <button
-                  type="button"
-                  className="text-sm text-[#007aff] underline underline-offset-2 font-medium cursor-pointer hover:text-[#0065d4] transition-colors focus:outline-none"
-                  onClick={() => toast('Contact your administrator.')}
-                >
-                  Forgot Password?
-                </button>
+              {/* Login row */}
+              <div className="flex items-center justify-end mb-5 mt-1">
                 <button
                   type="submit"
                   disabled={loading}

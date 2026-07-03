@@ -69,15 +69,9 @@ export function useCreateDDMSFolder() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: CreateFolderBody) => ddmsFoldersService.create(body),
-    onSuccess: (_data, variables) => {
-      // Invalidate parent folder contents + roots + tree
-      qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.roots() })
-      qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.tree() })
-      if (variables.parent_id) {
-        qc.invalidateQueries({
-          queryKey: queryKeys.ddmsFolders.contents(variables.parent_id),
-        })
-      }
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.all })
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsInvestor.all })
     },
   })
 }
@@ -92,6 +86,7 @@ export function useRenameDDMSFolder() {
       ddmsFoldersService.rename(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.all })
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsInvestor.all })
     },
   })
 }
@@ -105,6 +100,7 @@ export function useDeleteDDMSFolder() {
     mutationFn: (id: string) => ddmsFoldersService.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.all })
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsInvestor.all })
     },
   })
 }
@@ -119,6 +115,7 @@ export function useMoveDDMSFolder() {
       ddmsFoldersService.move(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.all })
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsInvestor.all })
     },
   })
 }
@@ -131,11 +128,9 @@ export function useCopyDDMSFolder() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: CopyFolderBody }) =>
       ddmsFoldersService.copy(id, body),
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.tree() })
-      qc.invalidateQueries({
-        queryKey: queryKeys.ddmsFolders.contents(variables.body.parent_id),
-      })
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.all })
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsInvestor.all })
     },
   })
 }
@@ -187,11 +182,9 @@ export function useUploadDDMSDocument() {
       file: File
       onProgress?: (percent: number) => void
     }) => ddmsDocumentsService.upload(folderId, file, onProgress),
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.tree() })
-      qc.invalidateQueries({
-        queryKey: queryKeys.ddmsFolders.contents(variables.folderId),
-      })
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.all })
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsInvestor.all })
     },
   })
 }
@@ -207,6 +200,7 @@ export function useRenameDDMSDocument() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.ddmsDocuments.all })
       qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.all })
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsInvestor.all })
     },
   })
 }
@@ -221,6 +215,7 @@ export function useDeleteDDMSDocument() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.ddmsDocuments.all })
       qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.all })
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsInvestor.all })
     },
   })
 }
@@ -235,6 +230,7 @@ export function useMoveDDMSDocument() {
       ddmsDocumentsService.move(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.all })
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsInvestor.all })
     },
   })
 }
@@ -247,11 +243,9 @@ export function useCopyDDMSDocument() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: CopyDocumentBody }) =>
       ddmsDocumentsService.copy(id, body),
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.tree() })
-      qc.invalidateQueries({
-        queryKey: queryKeys.ddmsFolders.contents(variables.body.folder_id),
-      })
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsFolders.all })
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsInvestor.all })
     },
   })
 }
@@ -264,9 +258,13 @@ export function useCopyDDMSDocument() {
  * Grant investor view access to a private folder or document
  */
 export function useGrantDDMSPermission() {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: GrantPermissionBody) =>
       ddmsPermissionsService.grant(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsInvestor.all })
+    },
   })
 }
 
@@ -274,8 +272,12 @@ export function useGrantDDMSPermission() {
  * Revoke investor access
  */
 export function useRevokeDDMSPermission() {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => ddmsPermissionsService.revoke(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.ddmsInvestor.all })
+    },
   })
 }
 
