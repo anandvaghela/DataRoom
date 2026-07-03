@@ -4,8 +4,11 @@ import QueryProvider from '@/components/providers/QueryProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'FileBrowser',
-  description: 'Modern file browser',
+  title: 'Data Room',
+  description: 'Modern Data Room',
+  icons: {
+    icon: '/images/favicon.png',
+  },
 }
 
 interface RootLayoutProps {
