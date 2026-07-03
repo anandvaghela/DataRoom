@@ -9,6 +9,7 @@ import {
 import { clearAuth, getUser, formatBytes } from '@/lib/api'
 import { clsx } from 'clsx'
 import toast from 'react-hot-toast'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface AppLayoutProps {
   readonly children: React.ReactNode
@@ -17,6 +18,7 @@ interface AppLayoutProps {
 export default function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<any>(null)
   const [sideOpen, setSideOpen] = useState(false)
   const [usage] = useState<{ total: number; used: number } | null>(null)
@@ -60,6 +62,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }
 
   const logout = () => {
+    queryClient.clear()
     clearAuth()
     toast.success('Logged out')
     router.replace('/login')
