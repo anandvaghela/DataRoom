@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+.env.local
+*.tsbuildinfo
+
+# Package locks / packages
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
