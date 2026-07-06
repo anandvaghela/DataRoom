@@ -60,6 +60,7 @@ export default function FilePreviewModal({
   const isPdf = file.type === 'pdf' || ext === 'pdf'
   const isText = file.type === 'text' || ['txt', 'html', 'css', 'json', 'js', 'ts', 'tsx', 'md'].includes(ext)
   const isOffice = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'csv'].includes(ext)
+  const isImage = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'].includes(ext) || file.type === 'image'
   const rawFileUrl = presignedUrl || ''
   const rawDownloadUrl = presignedUrl || ''
 
@@ -115,10 +116,23 @@ export default function FilePreviewModal({
           {isOffice && rawFileUrl && (
             <div className="w-full h-full flex flex-col p-4">
               <iframe
-                src={`https://docs.google.com/viewer?url=${encodeURIComponent(rawFileUrl)}&embedded=true`}
+                src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(rawFileUrl)}`}
                 className="flex-1 rounded-lg border border-[#e8eaed] h-full bg-white"
                 title={file.name}
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
               />
+            </div>
+          )}
+
+          {isImage && rawFileUrl && (
+            <div className="w-full h-full flex flex-col p-4 items-center justify-center select-none">
+              <div className="relative max-w-full max-h-full flex items-center justify-center bg-white rounded-lg border border-[#e8eaed] p-2 shadow-sm overflow-hidden">
+                <img
+                  src={rawFileUrl}
+                  alt={file.name}
+                  className="max-w-full max-h-[60vh] object-contain rounded-md"
+                />
+              </div>
             </div>
           )}
 
@@ -143,7 +157,7 @@ export default function FilePreviewModal({
             </div>
           )}
 
-          {!isPdf && !isText && !isOffice && (
+          {!isPdf && !isText && !isOffice && !isImage && (
             <div className="text-center p-12">
               <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-4 border border-[#e8eaed]">
                 <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

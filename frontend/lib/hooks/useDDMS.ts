@@ -255,6 +255,17 @@ export function useCopyDDMSDocument() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
+ * Get active permissions for a folder or document
+ */
+export function useDDMSPermissions(params: { folder_id?: string; document_id?: string }) {
+  return useQuery({
+    queryKey: ['ddms', 'permissions', params.folder_id || params.document_id || ''],
+    queryFn: () => ddmsPermissionsService.getPermissions(params),
+    enabled: !!(params.folder_id || params.document_id),
+  })
+}
+
+/**
  * Grant investor view access to a private folder or document
  */
 export function useGrantDDMSPermission() {
@@ -262,8 +273,9 @@ export function useGrantDDMSPermission() {
   return useMutation({
     mutationFn: (body: GrantPermissionBody) =>
       ddmsPermissionsService.grant(body),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: queryKeys.ddmsInvestor.all })
+      qc.invalidateQueries({ queryKey: ['ddms', 'permissions', variables.folder_id || variables.document_id || ''] })
     },
   })
 }
@@ -271,12 +283,16 @@ export function useGrantDDMSPermission() {
 /**
  * Revoke investor access
  */
-export function useRevokeDDMSPermission() {
+export function useRevokeDDMSPermission(targetId?: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => ddmsPermissionsService.revoke(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.ddmsInvestor.all })
+      qc.invalidateQueries({ queryKey: ['ddms', 'permissions'] })
+      if (targetId) {
+        qc.invalidateQueries({ queryKey: ['ddms', 'permissions', targetId] })
+      }
     },
   })
 }

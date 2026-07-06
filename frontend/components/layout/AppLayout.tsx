@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   FolderOpen, Settings, LogOut, Menu, X,
   FolderPlus, FilePlus, Search, Users
@@ -68,8 +68,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
     router.replace('/login')
   }
 
+  const searchParams = useSearchParams()
+  const currentFilesPath = searchParams.get('path') || '/'
+  const isAtRoot = currentFilesPath === '/'
+
   const handleSidebarAction = (action: string) => {
     setSideOpen(false)
+    if (isAtRoot && (action === 'new-folder' || action === 'upload')) {
+      toast.error('Please open a folder first before creating files or folders')
+      return
+    }
     if (pathname === '/dashboard/files') {
       globalThis.window?.dispatchEvent(new CustomEvent(`sidebar-${action}`))
     } else {
@@ -86,11 +94,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
     return [
       { label: 'My Files', icon: FolderOpen, href: isInvestor ? '/dashboard/investor' : '/dashboard/files', active: isFilesPage },
       ...(isInvestor ? [] : [
-        { label: 'New Folder', icon: FolderPlus, action: 'new-folder' },
-        { label: 'New File', icon: FilePlus, action: 'upload' },
+        { label: 'New Folder', icon: FolderPlus, action: 'new-folder', disabled: isAtRoot },
+        { label: 'New File', icon: FilePlus, action: 'upload', disabled: isAtRoot },
       ]),
     ]
-  }, [user, isFilesPage])
+  }, [user, isFilesPage, isAtRoot])
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-white">
@@ -226,10 +234,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
               return (
                 <button
                   key={item.label}
-                  onClick={() => handleSidebarAction(item.action!)}
-                  className="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-medium text-[#555555] hover:bg-[#f6f6f6] hover:text-[#333333] transition-colors duration-150 text-left focus:outline-none"
+                  onClick={() => item.disabled ? toast.error('Please open a folder first') : handleSidebarAction(item.action!)}
+                  className={clsx(
+                    'w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-medium transition-colors duration-150 text-left focus:outline-none',
+                    item.disabled
+                      ? 'text-[#c0c0c0] cursor-not-allowed'
+                      : 'text-[#555555] hover:bg-[#f6f6f6] hover:text-[#333333]'
+                  )}
                 >
-                  <Icon className="w-[20px] h-[20px] text-[#929292] flex-shrink-0" />
+                  <Icon className={clsx('w-[20px] h-[20px] flex-shrink-0', item.disabled ? 'text-[#d0d0d0]' : 'text-[#929292]')} />
                   {item.label}
                 </button>
               )

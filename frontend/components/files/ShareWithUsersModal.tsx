@@ -1,40 +1,56 @@
 'use client'
 import { useState, useMemo } from 'react'
-import { X, Users, Trash2, Calendar, Shield } from 'lucide-react'
-import { useGrantDDMSPermission, useRevokeDDMSPermission, useDDMSInvestors } from '@/lib/hooks/useDDMS'
+import { X, Users, Trash2, Shield } from 'lucide-react'
+import { useGrantDDMSPermission, useRevokeDDMSPermission, useDDMSInvestors, useDDMSPermissions } from '@/lib/hooks/useDDMS'
 import toast from 'react-hot-toast'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import { FileItem } from '@/types'
 
-interface SessionGrant {
-  id: string
-  grantedTo: string
-  expiresAt?: string
-}
-
 export default function ShareWithUsersModal({ file, onClose }: { file: FileItem; onClose: () => void }) {
   const [recipient, setRecipient] = useState('')
   const [expiresAt, setExpiresAt] = useState('')
-  const [sessionGrants, setSessionGrants] = useState<SessionGrant[]>([])
 
   const grantMutation = useGrantDDMSPermission()
-  const revokeMutation = useRevokeDDMSPermission()
+  const revokeMutation = useRevokeDDMSPermission(file.path)
   const { data: investorsList, isLoading: loadingInvestors } = useDDMSInvestors()
+  const { data: activePermissions, isLoading: loadingPermissions } = useDDMSPermissions({
+    [file.isDir ? 'folder_id' : 'document_id']: file.path,
+  })
 
   const investorOptions = useMemo(() => {
     const list = Array.isArray(investorsList) ? investorsList : []
-    const options = list.map((inv: any) => {
-      const val = inv.username || inv._id || inv.id || ''
-      const label = inv.username ? `${inv.username} (${inv.email || inv._id || inv.id})` : inv.email || inv._id || inv.id || ''
+
+    // Set of cognito_subs of investors who already have access
+    const grantedSubSet = new Set<string>()
+
+    if (Array.isArray(activePermissions)) {
+      activePermissions.forEach((p: any) => {
+        if (p.has_permission && p.cognito_sub) {
+          grantedSubSet.add(String(p.cognito_sub).trim())
+        }
+      })
+    }
+
+    // Filter out investors who already have access
+    const filteredList = list.filter((inv: any) => {
+      const sub = inv.cognito_sub || ''
+      return !grantedSubSet.has(String(sub).trim())
+    })
+
+    const options = filteredList.map((inv: any) => {
+      const val = inv.cognito_sub || ''
+      const name = [inv.first_name, inv.last_name].filter(Boolean).join(' ')
+      const label = name || inv.email || inv.cognito_id || inv.username || inv.id || ''
       return { value: val, label }
     })
+
     return [
       { value: '', label: loadingInvestors ? 'Loading investors...' : 'Select an investor...' },
       ...options
     ]
-  }, [investorsList, loadingInvestors])
+  }, [investorsList, loadingInvestors, activePermissions])
 
   const handleGrant = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,21 +68,14 @@ export default function ShareWithUsersModal({ file, onClose }: { file: FileItem;
     }
 
     const selectedInvestor = Array.isArray(investorsList)
-      ? investorsList.find((inv: any) => (inv.username || inv._id || inv.id) === recipient)
+      ? investorsList.find((inv: any) => (inv.cognito_sub || '') === recipient)
       : null
-    const displayName = selectedInvestor?.username || recipient.trim()
+    const name = selectedInvestor ? [selectedInvestor.first_name, selectedInvestor.last_name].filter(Boolean).join(' ') : ''
+    const displayName = name || selectedInvestor?.email || recipient.trim()
 
     grantMutation.mutate(body, {
-      onSuccess: (data: any) => {
+      onSuccess: () => {
         toast.success(`Access granted to ${displayName}`)
-        setSessionGrants((prev) => [
-          ...prev,
-          {
-            id: data?.id || Math.random().toString(),
-            grantedTo: displayName,
-            expiresAt: isoExpiresAt,
-          },
-        ])
         setRecipient('')
         setExpiresAt('')
       },
@@ -76,11 +85,10 @@ export default function ShareWithUsersModal({ file, onClose }: { file: FileItem;
     })
   }
 
-  const handleRevoke = (grantId: string, username: string) => {
+  const handleRevoke = (grantId: string, displayName: string) => {
     revokeMutation.mutate(grantId, {
       onSuccess: () => {
-        toast.success(`Access revoked for ${username}`)
-        setSessionGrants((prev) => prev.filter((g) => g.id !== grantId))
+        toast.success(`Access revoked for ${displayName}`)
       },
       onError: (err: any) => {
         toast.error(err.response?.data?.error || 'Failed to revoke access')
@@ -90,7 +98,7 @@ export default function ShareWithUsersModal({ file, onClose }: { file: FileItem;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-modal w-full max-w-md animate-slide-up border border-gray-150 flex flex-col">
+      <div className="bg-white rounded-2xl shadow-modal w-full max-w-md animate-slide-up border border-gray-150 flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-2.5">
@@ -108,7 +116,7 @@ export default function ShareWithUsersModal({ file, onClose }: { file: FileItem;
         </div>
 
         {/* Content body */}
-        <form onSubmit={handleGrant} className="p-6 space-y-5 flex-1">
+        <form onSubmit={handleGrant} className="p-6 space-y-5 flex-shrink-0">
           <div className="space-y-4">
             <Select
               label="Recipient Investor"
@@ -136,42 +144,51 @@ export default function ShareWithUsersModal({ file, onClose }: { file: FileItem;
           </Button>
         </form>
 
-        {/* Session history */}
-        {sessionGrants.length > 0 && (
-          <div className="px-6 pb-6 flex-1 border-t border-gray-50 pt-4">
+        {/* Permissions Lists */}
+        <div className="px-6 pb-6 flex-1 border-t border-gray-50 pt-4 overflow-y-auto space-y-5 min-h-[150px]">
+          {/* Active Permissions Section */}
+          <div>
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-              Granted in this session
+              Active Permissions
             </h3>
-            <div className="space-y-2.5 max-h-36 overflow-y-auto pr-1">
-              {sessionGrants.map((grant) => (
-                <div
-                  key={grant.id}
-                  className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg border border-gray-100"
-                >
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-800 truncate">
-                      {grant.grantedTo}
-                    </p>
-                    {grant.expiresAt && (
-                      <p className="text-[10px] text-gray-400 mt-0.5">
-                        Expires: {new Date(grant.expiresAt).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRevoke(grant.id, grant.grantedTo)}
-                    disabled={revokeMutation.isPending}
-                    className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                    title="Revoke access"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
+            {loadingPermissions ? (
+              <p className="text-xs text-gray-400 py-3 text-center animate-pulse">Loading active permissions...</p>
+            ) : !activePermissions || activePermissions.filter((p) => p.has_permission && p.permission_id).length === 0 ? (
+              <p className="text-xs text-gray-400 py-3 text-center">No active permissions found.</p>
+            ) : (
+              <div className="space-y-2.5 pr-1">
+                {activePermissions.filter((p) => p.has_permission && p.permission_id).map((grant) => {
+                  const name = [grant.first_name, grant.last_name].filter(Boolean).join(' ')
+                  const displayName = name || grant.email || grant.cognito_sub
+                  const permId = grant.permission_id || ''
+
+                  return (
+                    <div
+                      key={permId}
+                      className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg border border-gray-100"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-gray-800 truncate">
+                          {displayName}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRevoke(permId, displayName)}
+                        disabled={revokeMutation.isPending}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0 ml-2"
+                        title="Revoke access"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
-        )}
+
+        </div>
 
         {/* Footer */}
         <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100 rounded-b-2xl flex-shrink-0">

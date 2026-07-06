@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { FolderOpen, Upload, FolderPlus } from 'lucide-react'
+import { FolderOpen, Upload, FolderPlus, AlertTriangle, Globe } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
@@ -204,6 +204,7 @@ export default function FilesPageContent() {
   const [moveCopyAction, setMoveCopyAction] = useState<'copy' | 'move' | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, item: FileItem } | null>(null)
   const [fabOpen, setFabOpen] = useState(false)
+  const [pendingUploadFiles, setPendingUploadFiles] = useState<File[] | null>(null)
 
   useEffect(() => {
     const u = getUser()
@@ -387,14 +388,41 @@ export default function FilesPageContent() {
   }
   useEffect(() => { setCurrentPath(searchParams.get('path') || '/') }, [searchParams])
 
+  // Helper: detect if currentPath is inside a "public" root folder
+  const isPublicRootActive = useMemo(() => {
+    let currId = currentPath
+    for (let depth = 0; depth < 20; depth++) {
+      if (!currId || currId === '/') break
+      const cached = folderCache[currId]
+      if (cached) {
+        if (!cached.parentId || cached.parentId === '/') {
+          return cached.name.toLowerCase() === 'public'
+        }
+        currId = cached.parentId
+      } else {
+        break
+      }
+    }
+    return false
+  }, [currentPath, folderCache])
+
   // Dropzone upload
   const uploadDoc = useUploadDDMSDocument()
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (currentPath === '/') { toast.error('Please open a folder before uploading'); return }
-    for (const file of acceptedFiles) {
+
+  const doUpload = useCallback(async (files: File[]) => {
+    for (const file of files) {
       await uploadSingleFile(file, currentPath, uploadDoc.mutateAsync, setUploading)
     }
   }, [currentPath, uploadDoc.mutateAsync])
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (currentPath === '/') { toast.error('Please open a folder before uploading'); return }
+    if (isPublicRootActive) {
+      setPendingUploadFiles(acceptedFiles)
+      return
+    }
+    await doUpload(acceptedFiles)
+  }, [currentPath, isPublicRootActive, doUpload])
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({ onDrop, noClick: true, noKeyboard: true })
 
@@ -587,6 +615,7 @@ export default function FilesPageContent() {
           />
         </div>
 
+        {currentPath !== '/' && (
         <div className="fixed bottom-20 sm:bottom-8 z-40 flex flex-col items-end gap-2 right-4 lg:right-[320px] xl:right-[350px]">
           <div className={clsx("flex flex-col items-end gap-2 transition-all duration-205", fabOpen ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-2 pointer-events-none")}>
             <button onClick={(e) => { e.stopPropagation(); open(); setFabOpen(false) }} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-xs font-bold rounded-full shadow-lg border border-gray-200 hover:bg-gray-50 transition-colors">
@@ -600,6 +629,7 @@ export default function FilesPageContent() {
             <FolderPlus className="w-4.5 h-4.5" />
           </button>
         </div>
+        )}
 
         <Portal>
           {shareTarget && <ShareModal file={shareTarget} onClose={() => setShareTarget(null)} />}
@@ -632,6 +662,51 @@ export default function FilesPageContent() {
               setRenameTarget={setRenameTarget} setMoveCopyTargets={setMoveCopyTargets} setMoveCopyAction={setMoveCopyAction}
               setDeleteTargets={setDeleteTargets} handleMakeGlobal={() => {}} handleRemoveGlobal={() => {}} onClose={() => setContextMenu(null)}
             />
+          )}
+
+          {/* Public folder upload confirmation */}
+          {pendingUploadFiles && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 animate-slide-up overflow-hidden">
+                <div className="flex items-start gap-3 p-5 pb-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900">Uploading to Public Folder</h3>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      You are about to upload <span className="font-bold">{pendingUploadFiles.length} file{pendingUploadFiles.length > 1 ? 's' : ''}</span> to a <span className="font-bold text-green-700">Public</span> folder.
+                    </p>
+                  </div>
+                </div>
+                <div className="mx-5 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                  <div className="flex items-start gap-2">
+                    <Globe className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-amber-800 leading-relaxed">
+                      <span className="font-bold">All users</span> including investors will be able to view these files. Please make sure you are not uploading any confidential or sensitive documents here.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2.5 p-4 pt-4">
+                  <button
+                    onClick={() => setPendingUploadFiles(null)}
+                    className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const files = pendingUploadFiles
+                      setPendingUploadFiles(null)
+                      await doUpload(files)
+                    }}
+                    className="px-4 py-2 text-xs font-bold text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-colors focus:outline-none shadow-sm"
+                  >
+                    Yes, Upload to Public
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </Portal>
       </div>

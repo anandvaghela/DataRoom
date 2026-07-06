@@ -41,6 +41,7 @@ export type {
   DDMSUploadInitResponse,
   DDMSDocumentUrlResponse,
   DDMSPermission,
+  DDMSPermissionInvestor,
   CreateFolderBody,
   RenameFolderBody,
   MoveFolderBody,

@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState, useMemo } from 'react'
 import {
-  Folder, File, FileText, Image as ImageIcon, Film, Music, X, Download, Share2
+  Folder, File, FileText, Image as ImageIcon, Film, Music, X, Download, Share2,
+  Info, Globe, Lock, ShieldCheck
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { formatBytes, getUser } from '@/lib/api'
@@ -435,6 +436,7 @@ export default function DetailsPanel({
               </button>
             )}
           </div>
+
           <div className="px-3 py-2 max-h-[45vh] overflow-y-auto">
             {tree ? (
               <TreeRow node={tree} depth={0} activePath={activePath} onNavigate={onNavigate} globalPaths={new Set()} />
@@ -505,6 +507,64 @@ export default function DetailsPanel({
               )}
             </div>
           </div>
+
+          {/* Folder access info (issuer only, at root level) */}
+          {!isInvestor && currentPath === '/' && (() => {
+            const selectedName = selectedItem?.name?.toLowerCase() || ''
+            const showPublic = !selectedItem || selectedName === 'public'
+            const showPrivate = !selectedItem || selectedName === 'private'
+            const showProtected = !selectedItem || selectedName === 'protected'
+
+            if (!showPublic && !showPrivate && !showProtected) return null
+
+            return (
+              <div className="px-4 py-3 space-y-2.5 border-t border-gray-100 bg-gray-50/50">
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5" />
+                  {selectedItem ? `${selectedItem.name} Folder Info` : 'Folder Access Guide'}
+                </p>
+                {showPublic && (
+                  <div className="rounded-lg border border-green-200 bg-green-50/60 p-2.5">
+                    <div className="flex items-start gap-2">
+                      <Globe className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-[11px] font-bold text-green-800">Public Folder</p>
+                        <p className="text-[10px] text-green-700 mt-0.5 leading-relaxed">
+                          Visible to all users including investors. Files uploaded here can be viewed by anyone with access to the platform.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {showPrivate && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-2.5">
+                    <div className="flex items-start gap-2">
+                      <Lock className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-[11px] font-bold text-amber-800">Private Folder</p>
+                        <p className="text-[10px] text-amber-700 mt-0.5 leading-relaxed">
+                          Only visible to investors who have signed an NDA. Files here are protected and require NDA verification before access is granted.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {showProtected && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-2.5">
+                    <div className="flex items-start gap-2">
+                      <ShieldCheck className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-[11px] font-bold text-blue-800">Protected Folder</p>
+                        <p className="text-[10px] text-blue-700 mt-0.5 leading-relaxed">
+                          Strictly confidential — visible only to you. No investors or external users can access files in this folder.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
     </aside>

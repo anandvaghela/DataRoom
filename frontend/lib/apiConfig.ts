@@ -39,6 +39,7 @@ export const apiEndpoints = {
   ddmsPermissions: {
     grant: '/ubverse-service/ddms/permissions',
     revoke: (id: string) => `/ubverse-service/ddms/permissions/${id}`,
+    list: '/ubverse-service/ddms/folders/investors/permissions',
   },
 
   // ── DDMS — Investor (permission-scoped) ────────────────────────────────────

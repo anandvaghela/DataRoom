@@ -50,6 +50,21 @@ export interface DDMSPermission {
   created_at: string
 }
 
+export interface DDMSPermissionInvestor {
+  id: number
+  cognito_id: string
+  cognito_sub: string
+  email: string
+  first_name: string
+  last_name: string
+  mobile_number: string
+  country_code: string
+  profile_pic_url: string | null
+  profile_background_image: string | null
+  has_permission: boolean
+  permission_id: string | null
+}
+
 // ── Request body types ────────────────────────────────────────────────────────
 
 export interface CreateFolderBody {
@@ -353,6 +368,23 @@ export const ddmsDocumentsService = {
 // ── DDMS Permissions service ──────────────────────────────────────────────────
 
 export const ddmsPermissionsService = {
+  /**
+   * Get active permissions for a folder or document
+   */
+  getPermissions: (params: { folder_id?: string; document_id?: string }) =>
+    http.get(apiEndpoints.ddmsPermissions.list, { params })
+      .then((r) => {
+        const payload = r.data as any
+        const data = payload?.success ? payload.data : payload
+        return (Array.isArray(data) ? data : data ? [data] : []) as DDMSPermissionInvestor[]
+      })
+      .catch((err) => {
+        if (err.response?.status === 404) {
+          return []
+        }
+        throw err
+      }),
+
   /**
    * Grant investor view access to a private folder or document
    */
