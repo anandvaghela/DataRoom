@@ -187,7 +187,7 @@ export default function LoginPageContent({ initialMode = 'founder' }: Readonly<{
         </aside>
 
         {/* RIGHT — form panel */}
-        <main className="rightside-panel w-1/2 flex flex-col justify-between bg-white/[0.92] backdrop-blur-[16px] border-l border-[#ebebeb]">
+        <main className="rightside-panel w-1/2 flex flex-col justify-between border-l border-[#ebebeb] relative">
           {/* Form area */}
           <div className="flex-1 flex flex-col justify-start lg:pt-[131px] py-10 px-10 lg:px-14 w-full">
             {/* Mobile Header (Visible only on small screens) */}
