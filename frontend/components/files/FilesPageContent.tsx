@@ -719,7 +719,7 @@ export default function FilesPageContent() {
         items={items}
         selectedItem={selectedItems.length === 1 ? selectedItems[0] : null}
         onNavigate={navigate} onClearSelection={() => setSelected(new Set())}
-        onShareLink={user?.perm?.share && activeSidebarItem ? () => setShareTarget(activeSidebarItem) : undefined}
+        onShareLink={user?.perm?.share && activeSidebarItem && !activeSidebarItem.isDir ? () => setShareTarget(activeSidebarItem) : undefined}
         onShareUsers={user?.perm?.share && activeSidebarItem && isPrivateRootActive ? () => setShareWithUsersTarget(activeSidebarItem) : undefined}
         onDownload={user?.perm?.download && activeSidebarItem && !activeSidebarItem.isDir ? () => handleDownload(activeSidebarItem) : undefined}
         onMakeGlobal={user?.perm?.admin && activeSidebarItem ? () => {} : undefined}

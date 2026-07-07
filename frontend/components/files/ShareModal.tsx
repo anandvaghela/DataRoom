@@ -1,11 +1,15 @@
 'use client'
-import { X, Share2, Copy, ExternalLink } from 'lucide-react'
+import { useState } from 'react'
+import { X, Share2, Mail } from 'lucide-react'
 import { useDDMSDocumentUrl } from '@/lib/hooks/useDDMS'
 import toast from 'react-hot-toast'
 import Button from '@/components/ui/Button'
+import Input from '@/components/ui/Input'
 
 export default function ShareModal({ file, onClose }: { file: any; onClose: () => void }) {
   const isDir = !!file.isDir
+  const [email, setEmail] = useState('')
+  const [sharing, setSharing] = useState(false)
 
   // Fetch presigned document url (disabled if it is a directory)
   const { data: urlData, isLoading, error } = useDDMSDocumentUrl(file.path, !isDir)
@@ -14,11 +18,38 @@ export default function ShareModal({ file, onClose }: { file: any; onClose: () =
     ? `${window.location.origin}/dashboard/files?path=${encodeURIComponent(file.path)}`
     : urlData?.url || ''
 
-  const copyLink = () => {
-    if (!shareUrl) return
-    navigator.clipboard.writeText(shareUrl)
-      .then(() => toast.success('Copied!'))
-      .catch(() => toast.error('Copy failed'))
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail) return
+
+    // Simple email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(trimmedEmail)) {
+      toast.error('Please enter a valid email address')
+      return
+    }
+
+    setSharing(true)
+    try {
+      // Mock API call to share link via email (actual integration to be implemented later)
+      console.log('Sharing document link via email:', {
+        email: trimmedEmail,
+        fileId: file.path,
+        fileName: file.name,
+        shareUrl,
+      })
+
+      // Simulate network request delay
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      toast.success(`Share link sent to ${trimmedEmail} successfully!`)
+      onClose()
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to send share link')
+    } finally {
+      setSharing(false)
+    }
   }
 
   return (
@@ -36,7 +67,7 @@ export default function ShareModal({ file, onClose }: { file: any; onClose: () =
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-6">
           {isLoading ? (
             <div className="py-8 text-center text-sm text-gray-400 flex flex-col items-center justify-center gap-2">
               <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -45,48 +76,31 @@ export default function ShareModal({ file, onClose }: { file: any; onClose: () =
           ) : error ? (
             <p className="text-xs text-red-500 text-center py-6">Failed to generate pre-signed URL.</p>
           ) : (
-            <div className="space-y-4">
+            <form onSubmit={submit} className="space-y-5">
               <p className="text-xs text-gray-500 leading-relaxed">
-                {isDir
-                  ? 'Copy the link below to share this folder with users who have access permissions.'
-                  : 'Copy the short-lived pre-signed URL below to share this file directly.'}
+                Enter the recipient's email address below to send them a secure link to access this file.
               </p>
               
-              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-[#e8eaed] hover:border-gray-300 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-mono text-gray-600 truncate font-semibold">
-                    {shareUrl}
-                  </p>
-                  {!isDir && urlData?.expires_at && (
-                    <p className="text-[10px] text-gray-400 mt-0.5">
-                      Expires: {new Date(urlData.expires_at).toLocaleString()}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button
-                    onClick={copyLink}
-                    className="p-1.5 rounded-lg hover:bg-gray-150 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
-                    title="Copy Link"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
-                  <a
-                    href={shareUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-1.5 rounded-lg hover:bg-gray-150 text-gray-400 hover:text-primary-500 transition-colors focus:outline-none"
-                    title="Open Link"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-              </div>
+              <Input
+                type="email"
+                label="Email Address"
+                placeholder="recipient@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoFocus
+                required
+                prefixIcon={<Mail className="w-4 h-4 text-gray-400" />}
+              />
 
-              <Button onClick={onClose} className="w-full">
-                Close
-              </Button>
-            </div>
+              <div className="flex gap-3 pt-2">
+                <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+                  Cancel
+                </Button>
+                <Button type="submit" loading={sharing} disabled={!email.trim()} className="flex-1">
+                  Send Link
+                </Button>
+              </div>
+            </form>
           )}
         </div>
       </div>

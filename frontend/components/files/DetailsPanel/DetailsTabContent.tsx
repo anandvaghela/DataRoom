@@ -86,17 +86,17 @@ export function DetailsTabContent({
         <div className="pt-2 border-t border-gray-100">
           <p className="text-sm font-bold text-gray-800 mb-3">Options</p>
           <div className="space-y-3">
-            {!isInvestor && onShareLink && (
+            {/* {!isInvestor && onShareLink && !displayItem.isDir && (
               <button onClick={onShareLink} className="w-full flex items-center gap-3.5 text-left focus:outline-none group">
                 <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-600 group-hover:bg-blue-100 transition-colors">
                   <Share2 className="w-4 h-4" />
                 </div>
                 <div>
                   <p className="text-xs font-bold text-gray-800">Share link</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{displayItem.isDir ? 'Folders' : 'Files'}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Files</p>
                 </div>
               </button>
-            )}
+            )} */}
             {onDownload && !displayItem.isDir && (
               <button onClick={onDownload} className="w-full flex items-center gap-3.5 text-left focus:outline-none group">
                 <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-600 group-hover:bg-blue-100 transition-colors">
