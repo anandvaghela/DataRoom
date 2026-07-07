@@ -1,4 +1,5 @@
 'use client'
+import { Suspense } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 
 interface DashboardLayoutProps {
@@ -6,5 +7,9 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  return <AppLayout>{children}</AppLayout>
+  return (
+    <Suspense fallback={null}>
+      <AppLayout>{children}</AppLayout>
+    </Suspense>
+  )
 }
